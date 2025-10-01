@@ -46,7 +46,19 @@ const AnnouncementsSection = () => {
     }
   };
   useEffect(() => {
-    fetchAnnouncements();
+    let isMounted = true;
+    
+    const loadAnnouncements = async () => {
+      if (isMounted) {
+        await fetchAnnouncements();
+      }
+    };
+    
+    loadAnnouncements();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Unknown date';

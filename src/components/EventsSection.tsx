@@ -14,7 +14,19 @@ const EventsSection = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetchEvents();
+    let isMounted = true;
+    
+    const loadEvents = async () => {
+      if (isMounted) {
+        await fetchEvents();
+      }
+    };
+    
+    loadEvents();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchEvents = async () => {
