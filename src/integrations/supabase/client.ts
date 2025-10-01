@@ -5,12 +5,14 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://woosegomxvbgzelyqvoj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvb3NlZ29teHZiZ3plbHlxdm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2Nzg3OTAsImV4cCI6MjA3NDI1NDc5MH0.htpKQLRZjqwochLN7MBVI8tA5F-AAwktDd5SLq6vUSc";
 
-// Custom fetch that routes through Netlify proxy to avoid CORS blocks
+// Custom fetch that routes REST API calls through Netlify proxy to avoid CORS blocks
+// But lets auth requests go directly to Supabase
 const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
   const urlString = url.toString();
   
-  // If this is a Supabase request, route through Netlify proxy
-  if (urlString.includes('woosegomxvbgzelyqvoj.supabase.co')) {
+  // Only proxy REST API calls (/rest/v1/), not auth calls (/auth/v1/)
+  // Auth needs to go directly to Supabase to work properly
+  if (urlString.includes('woosegomxvbgzelyqvoj.supabase.co/rest/v1/')) {
     const endpoint = urlString.replace(SUPABASE_URL, '');
     
     const proxyOptions = {
@@ -29,7 +31,7 @@ const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
     return fetch('/.netlify/functions/proxy', proxyOptions);
   }
   
-  // For non-Supabase requests, use regular fetch
+  // For auth requests and other requests, use regular fetch
   return fetch(url, options);
 };
 
