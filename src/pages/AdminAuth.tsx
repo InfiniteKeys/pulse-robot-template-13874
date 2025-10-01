@@ -42,12 +42,17 @@ const AdminAuth = () => {
           variant: "destructive"
         });
       } else {
-        // Store the session
+        // Store tokens manually
         if (data.access_token) {
-          await supabase.auth.setSession({
+          localStorage.setItem('supabase.auth.token', JSON.stringify({
             access_token: data.access_token,
-            refresh_token: data.refresh_token
-          });
+            refresh_token: data.refresh_token,
+            expires_at: data.expires_at,
+            user: data.user
+          }));
+          
+          // Trigger storage event for AuthProvider
+          window.dispatchEvent(new Event('storage'));
         }
         
         toast({
@@ -88,17 +93,26 @@ const AdminAuth = () => {
           variant: "destructive"
         });
       } else {
-        // Store the session in Supabase client
-        await supabase.auth.setSession({
+        // Store tokens manually in localStorage
+        localStorage.setItem('supabase.auth.token', JSON.stringify({
           access_token: data.access_token,
-          refresh_token: data.refresh_token
-        });
+          refresh_token: data.refresh_token,
+          expires_at: data.expires_at,
+          user: data.user
+        }));
+        
+        // Trigger storage event for AuthProvider to pick up the change
+        window.dispatchEvent(new Event('storage'));
         
         toast({
           title: "Welcome back!",
           description: "You have successfully signed in."
         });
-        navigate('/admin');
+        
+        // Small delay to ensure storage event is processed
+        setTimeout(() => {
+          navigate('/admin');
+        }, 100);
       }
     } catch (error) {
       toast({

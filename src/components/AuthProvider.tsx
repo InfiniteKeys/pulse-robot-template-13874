@@ -34,7 +34,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Check for manually stored session from Netlify auth
+    const checkStoredSession = () => {
+      try {
+        const storedAuth = localStorage.getItem('supabase.auth.token');
+        if (storedAuth) {
+          const authData = JSON.parse(storedAuth);
+          if (authData.user) {
+            setUser(authData.user);
+            setSession({
+              access_token: authData.access_token,
+              refresh_token: authData.refresh_token,
+              expires_at: authData.expires_at,
+              user: authData.user
+            } as Session);
+            checkUserRoles(authData.user.id);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error reading stored session:', error);
+      }
+      setLoading(false);
+    };
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -52,19 +76,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
+    // Check for stored session first
+    checkStoredSession();
+    
+    // Also check Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        checkUserRoles(session.user.id);
-      } else {
-        setLoading(false);
+      if (session) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          checkUserRoles(session.user.id);
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for storage changes (from login)
+    const handleStorageChange = () => {
+      checkStoredSession();
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const checkUserRoles = async (userId: string) => {
