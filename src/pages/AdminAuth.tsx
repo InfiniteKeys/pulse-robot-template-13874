@@ -22,28 +22,47 @@ const AdminAuth = () => {
     e.preventDefault();
     setLoading(true);
     
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const response = await fetch('/.netlify/functions/auth-signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, redirectUrl })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || data.error) {
+        toast({
+          title: "Sign Up Error",
+          description: data.error?.message || data.msg || "Failed to sign up",
+          variant: "destructive"
+        });
+      } else {
+        // Store the session
+        if (data.access_token) {
+          await supabase.auth.setSession({
+            access_token: data.access_token,
+            refresh_token: data.refresh_token
+          });
+        }
+        
+        toast({
+          title: "Check Your Email",
+          description: "We've sent you a confirmation email. Please verify your email to complete registration."
+        });
       }
-    });
-    
-    if (error) {
+    } catch (error) {
       toast({
         title: "Sign Up Error",
-        description: error.message,
+        description: "Network error occurred",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Check Your Email",
-        description: "We've sent you a confirmation email. Please verify your email to complete registration."
-      });
     }
+    
     setLoading(false);
   };
 
@@ -51,24 +70,44 @@ const AdminAuth = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    if (error) {
+    try {
+      const response = await fetch('/.netlify/functions/auth-signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || data.error) {
+        toast({
+          title: "Sign In Error",
+          description: data.error?.message || data.msg || "Failed to sign in",
+          variant: "destructive"
+        });
+      } else {
+        // Store the session in Supabase client
+        await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token
+        });
+        
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in."
+        });
+        navigate('/admin');
+      }
+    } catch (error) {
       toast({
         title: "Sign In Error",
-        description: error.message,
+        description: "Network error occurred",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in."
-      });
-      navigate('/admin');
     }
+    
     setLoading(false);
   };
 
