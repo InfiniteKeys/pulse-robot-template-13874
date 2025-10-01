@@ -1,0 +1,7 @@
+project_id = "woosegomxvbgzelyqvoj"
+
+[functions.get-events]
+verify_jwt = false
+
+[functions.get-announcements]
+verify_jwt = false
