@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
@@ -41,12 +40,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (storedAuth) {
           const authData = JSON.parse(storedAuth);
           if (authData.user && authData.access_token) {
-            // Set the session in Supabase client so it can make authenticated requests
-            await supabase.auth.setSession({
-              access_token: authData.access_token,
-              refresh_token: authData.refresh_token
-            });
-            
             setUser(authData.user);
             setSession({
               access_token: authData.access_token,
@@ -64,37 +57,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     };
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer role checking with setTimeout
-        if (session?.user) {
-          setTimeout(() => {
-            checkUserRoles(session.user.id);
-          }, 0);
-        } else {
-          setIsAdmin(false);
-          setIsOverseer(false);
-        }
-      }
-    );
-
-    // Check for stored session first
+    // Check for stored session on mount
     checkStoredSession();
-    
-    // Also check Supabase session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          checkUserRoles(session.user.id);
-        }
-      }
-    });
 
     // Listen for storage changes (from login)
     const handleStorageChange = () => {
@@ -103,20 +67,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      subscription.unsubscribe();
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
   const checkUserRoles = async (userId: string) => {
     try {
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
-
-      if (roles) {
-        const roleNames = roles.map(r => r.role);
+      // Get access token from localStorage
+      const storedAuth = localStorage.getItem('supabase.auth.token');
+      let accessToken = '';
+      
+      if (storedAuth) {
+        const authData = JSON.parse(storedAuth);
+        accessToken = authData.access_token;
+      }
+      
+      // Call Netlify function to check roles (server-side)
+      const response = await fetch('/.netlify/functions/check-user-roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, accessToken })
+      });
+      
+      const data = await response.json();
+      
+      if (data.roles && Array.isArray(data.roles)) {
+        const roleNames = data.roles.map((r: { role: string }) => r.role);
         setIsAdmin(roleNames.includes('admin'));
         setIsOverseer(roleNames.includes('overseer'));
       }
