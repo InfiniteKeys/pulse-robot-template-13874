@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { toZonedTime } from "date-fns-tz";
+
 import { Calendar, Clock, MapPin, Users } from "lucide-react";
 interface Event {
   id: string;
@@ -52,11 +52,9 @@ const EventsSection = () => {
     }
   };
   const CountdownTimer = ({
-    targetDate,
-    targetTime
+    targetDate
   }: {
     targetDate: string;
-    targetTime: string;
   }) => {
     const [timeLeft, setTimeLeft] = useState({
       days: 0,
@@ -66,14 +64,9 @@ const EventsSection = () => {
     });
     useEffect(() => {
       const timer = setInterval(() => {
-        // Get current time in EST
-        const nowEST = toZonedTime(new Date(), 'America/New_York');
-        
-        // Combine date and time, parse as EST
-        const dateTimeString = `${targetDate}T${targetTime}`;
-        const targetEST = toZonedTime(new Date(dateTimeString), 'America/New_York');
-        
-        const difference = targetEST.getTime() - nowEST.getTime();
+        const now = new Date().getTime();
+        const target = new Date(targetDate).getTime();
+        const difference = target - now;
         if (difference > 0) {
           setTimeLeft({
             days: Math.floor(difference / (1000 * 60 * 60 * 24)),
@@ -84,7 +77,7 @@ const EventsSection = () => {
         }
       }, 1000);
       return () => clearInterval(timer);
-    }, [targetDate, targetTime]);
+    }, [targetDate]);
     return <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 text-center">
         <TimeBox value={timeLeft.days} label="Days" />
         <TimeBox value={timeLeft.hours} label="Hours" />
@@ -184,7 +177,7 @@ const EventsSection = () => {
                     <Clock className="h-4 w-4 animate-pulse" />
                     Time Remaining
                   </p>
-                  <CountdownTimer targetDate={event.date} targetTime={event.time} />
+                  <CountdownTimer targetDate={event.date} />
                 </div>
               </div>)}
             </div>}
