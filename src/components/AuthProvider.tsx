@@ -35,12 +35,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Check for manually stored session from Netlify auth
-    const checkStoredSession = () => {
+    const checkStoredSession = async () => {
       try {
         const storedAuth = localStorage.getItem('supabase.auth.token');
         if (storedAuth) {
           const authData = JSON.parse(storedAuth);
-          if (authData.user) {
+          if (authData.user && authData.access_token) {
+            // Set the session in Supabase client so it can make authenticated requests
+            await supabase.auth.setSession({
+              access_token: authData.access_token,
+              refresh_token: authData.refresh_token
+            });
+            
             setUser(authData.user);
             setSession({
               access_token: authData.access_token,
