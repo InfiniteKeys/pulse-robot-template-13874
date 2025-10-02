@@ -110,42 +110,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkUserRoles = async (userId: string) => {
     try {
-      // Get the auth token from localStorage
-      const storedAuth = localStorage.getItem('supabase.auth.token');
-      if (!storedAuth) {
-        setIsAdmin(false);
-        setIsOverseer(false);
-        setLoading(false);
-        return;
-      }
-      
-      const authData = JSON.parse(storedAuth);
-      const token = authData.access_token;
-      
-      const SUPABASE_URL = "https://woosegomxvbgzelyqvoj.supabase.co";
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvb3NlZ29teHZiZ3plbHlxdm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2Nzg3OTAsImV4cCI6MjA3NDI1NDc5MH0.htpKQLRZjqwochLN7MBVI8tA5F-AAwktDd5SLq6vUSc";
-      
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/check-user-roles`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY,
-          'authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setIsAdmin(data.isAdmin || false);
-        setIsOverseer(data.isOverseer || false);
-      } else {
-        setIsAdmin(false);
-        setIsOverseer(false);
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      if (roles) {
+        const roleNames = roles.map(r => r.role);
+        setIsAdmin(roleNames.includes('admin'));
+        setIsOverseer(roleNames.includes('overseer'));
       }
     } catch (error) {
       console.error('Error checking user roles:', error);
-      setIsAdmin(false);
-      setIsOverseer(false);
     } finally {
       setLoading(false);
     }

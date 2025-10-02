@@ -25,14 +25,10 @@ const AdminAuth = () => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
-      const SUPABASE_URL = "https://woosegomxvbgzelyqvoj.supabase.co";
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvb3NlZ29teHZiZ3plbHlxdm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2Nzg3OTAsImV4cCI6MjA3NDI1NDc5MH0.htpKQLRZjqwochLN7MBVI8tA5F-AAwktDd5SLq6vUSc";
-      
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-signup`, {
+      const response = await fetch('/.netlify/functions/auth-signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY,
         },
         body: JSON.stringify({ email, password, redirectUrl })
       });
@@ -80,14 +76,10 @@ const AdminAuth = () => {
     setLoading(true);
     
     try {
-      const SUPABASE_URL = "https://woosegomxvbgzelyqvoj.supabase.co";
-      const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvb3NlZ29teHZiZ3plbHlxdm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2Nzg3OTAsImV4cCI6MjA3NDI1NDc5MH0.htpKQLRZjqwochLN7MBVI8tA5F-AAwktDd5SLq6vUSc";
-      
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-signin`, {
+      const response = await fetch('/.netlify/functions/auth-signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY,
         },
         body: JSON.stringify({ email, password })
       });
