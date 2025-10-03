@@ -27,7 +27,7 @@ export async function handler(event, context) {
     });
 
     const { data, error } = await supabase
-      .from('events')
+      .from('public_events')
       .update({ name, description, date, time, location, participants })
       .eq('id', id)
       .select();

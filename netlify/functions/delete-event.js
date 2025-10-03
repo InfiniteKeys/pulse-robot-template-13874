@@ -27,7 +27,7 @@ export async function handler(event, context) {
     });
 
     const { error } = await supabase
-      .from('events')
+      .from('public_events')
       .delete()
       .eq('id', id);
 
