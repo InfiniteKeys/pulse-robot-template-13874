@@ -25,16 +25,9 @@ export async function handler(event, context) {
     const { data, error } = await supabase
       .from('club_stats')
       .select('*')
-      .maybeSingle();
+      .single();
 
-    if (error) {
-      console.error('Error fetching stats:', error);
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({})
-      };
-    }
+    if (error) throw error;
 
     return {
       statusCode: 200,

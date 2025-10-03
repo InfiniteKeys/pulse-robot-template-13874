@@ -30,7 +30,7 @@ export async function handler(event, context) {
     const { data: existing } = await supabase
       .from('club_stats')
       .select('id')
-      .maybeSingle();
+      .single();
 
     let result;
     if (existing) {
@@ -46,10 +46,7 @@ export async function handler(event, context) {
         .select();
     }
 
-    if (result.error) {
-      console.error('Database error:', result.error);
-      throw result.error;
-    }
+    if (result.error) throw result.error;
 
     return {
       statusCode: 200,
