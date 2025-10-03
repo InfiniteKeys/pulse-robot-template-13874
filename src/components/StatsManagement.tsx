@@ -35,22 +35,28 @@ const StatsManagement = () => {
   }, []);
 
   const fetchStats = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('club_stats')
-        .select('*')
-        .maybeSingle();
-
-      if (error) throw error;
+      const response = await fetch('/.netlify/functions/get-stats');
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      
+      const data = await response.json();
       
       if (data) {
-        setStats(data);
+        setStats({
+          active_members: data.active_members || 0,
+          competitions: data.competitions || 0,
+          awards_won: data.awards_won || 0,
+          years_running: data.years_running || 0,
+          success_rate: data.success_rate || 0,
+          weekly_sessions: data.weekly_sessions || 0
+        });
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
       toast({
         title: "Error",
-        description: "Failed to load stats. Using defaults.",
+        description: "Failed to fetch statistics.",
         variant: "destructive"
       });
     } finally {
@@ -61,52 +67,36 @@ const StatsManagement = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { data: existingData } = await supabase
-        .from('club_stats')
-        .select('id')
-        .maybeSingle();
-
-      if (existingData) {
-        // Update existing
-        const { error } = await supabase
-          .from('club_stats')
-          .update({
-            active_members: stats.active_members,
-            competitions: stats.competitions,
-            awards_won: stats.awards_won,
-            years_running: stats.years_running,
-            success_rate: stats.success_rate,
-            weekly_sessions: stats.weekly_sessions,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingData.id);
-
-        if (error) throw error;
-      } else {
-        // Insert new
-        const { error } = await supabase
-          .from('club_stats')
-          .insert([{
+      const accessToken = localStorage.getItem('access_token');
+      
+      const response = await fetch('/.netlify/functions/update-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stats: {
             active_members: stats.active_members,
             competitions: stats.competitions,
             awards_won: stats.awards_won,
             years_running: stats.years_running,
             success_rate: stats.success_rate,
             weekly_sessions: stats.weekly_sessions
-          }]);
+          },
+          accessToken
+        })
+      });
 
-        if (error) throw error;
-      }
+      if (!response.ok) throw new Error('Failed to update stats');
 
       toast({
         title: "Success",
-        description: "Stats updated successfully!"
+        description: "Statistics saved successfully."
       });
+      fetchStats();
     } catch (error) {
       console.error('Error saving stats:', error);
       toast({
         title: "Error",
-        description: "Failed to save stats. Please try again.",
+        description: "Failed to save statistics.",
         variant: "destructive"
       });
     } finally {

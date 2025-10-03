@@ -29,33 +29,33 @@ const UserManagement = () => {
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
-
-      if (profilesError) throw profilesError;
-
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-
-      if (rolesError) throw rolesError;
-
-      const usersWithRoles: UserWithRole[] = (profiles || []).map(profile => {
-        const userRoles = roles?.filter(r => r.user_id === profile.user_id) || [];
-        return {
-          ...profile,
-          isAdmin: userRoles.some(r => r.role === 'admin'),
-          isOverseer: userRoles.some(r => r.role === 'overseer')
-        };
+      const accessToken = localStorage.getItem('access_token');
+      
+      const response = await fetch('/.netlify/functions/get-users', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
       });
+      
+      if (!response.ok) throw new Error('Failed to fetch users');
+      
+      const { profiles, roles } = await response.json();
+
+      // Combine profiles with roles
+      const usersWithRoles: UserWithRole[] = (profiles || []).map(profile => ({
+        ...profile,
+        is_admin: roles?.some(r => r.user_id === profile.id && r.role === 'admin') || false,
+        is_overseer: roles?.some(r => r.user_id === profile.id && r.role === 'overseer') || false
+      }));
 
       setUsers(usersWithRoles);
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error fetching users:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to fetch users.",
         variant: "destructive"
       });
     } finally {
@@ -65,35 +65,32 @@ const UserManagement = () => {
 
   const updateUserRole = async (userId: string, role: 'admin' | 'overseer', action: 'add' | 'remove') => {
     try {
-      if (action === 'add') {
-        const { error } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role }]);
+      const accessToken = localStorage.getItem('access_token');
+      
+      const response = await fetch('/.netlify/functions/update-user-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          role,
+          action,
+          accessToken
+        })
+      });
 
-        if (error) throw error;
-        toast({
-          title: "Role Added",
-          description: `${role} role has been added successfully.`
-        });
-      } else {
-        const { error } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId)
-          .eq('role', role);
+      if (!response.ok) throw new Error('Failed to update user role');
 
-        if (error) throw error;
-        toast({
-          title: "Role Removed",
-          description: `${role} role has been removed successfully.`
-        });
-      }
-
+      toast({
+        title: "Success",
+        description: `User role ${action === 'add' ? 'added' : 'removed'} successfully.`
+      });
+      
       fetchUsers();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error updating user role:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to update user role.",
         variant: "destructive"
       });
     }

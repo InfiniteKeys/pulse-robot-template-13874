@@ -44,18 +44,18 @@ const EventManagement = () => {
   }, []);
 
   const fetchEvents = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
+      const response = await fetch('/.netlify/functions/get-events');
+      if (!response.ok) throw new Error('Failed to fetch events');
+      
+      const data = await response.json();
       setEvents(data || []);
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error fetching events:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to fetch events.",
         variant: "destructive"
       });
     } finally {
@@ -65,39 +65,72 @@ const EventManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name || !formData.date || !formData.time || !formData.location) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSubmitting(true);
-
     try {
+      const accessToken = localStorage.getItem('access_token');
+      
       if (editingEvent) {
-        const { error } = await supabase
-          .from('events')
-          .update(formData)
-          .eq('id', editingEvent.id);
+        const response = await fetch('/.netlify/functions/update-event', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingEvent.id,
+            name: formData.name,
+            description: formData.description,
+            date: formData.date,
+            time: formData.time,
+            location: formData.location,
+            participants: formData.participants,
+            accessToken
+          })
+        });
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Failed to update event');
+        
         toast({
-          title: "Event Updated",
-          description: "The event has been updated successfully."
+          title: "Success",
+          description: "Event updated successfully."
         });
       } else {
-        const { error } = await supabase
-          .from('events')
-          .insert([{ ...formData, created_by: user?.id }]);
+        const response = await fetch('/.netlify/functions/create-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            date: formData.date,
+            time: formData.time,
+            location: formData.location,
+            participants: formData.participants,
+            accessToken
+          })
+        });
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Failed to create event');
+        
         toast({
-          title: "Event Created",
-          description: "The event has been created successfully."
+          title: "Success",
+          description: "Event created successfully."
         });
       }
 
-      resetForm();
       setDialogOpen(false);
+      resetForm();
       fetchEvents();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error saving event:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to save event.",
         variant: "destructive"
       });
     } finally {
@@ -122,21 +155,26 @@ const EventManagement = () => {
     if (!confirm('Are you sure you want to delete this event?')) return;
 
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', id);
+      const accessToken = localStorage.getItem('access_token');
+      
+      const response = await fetch('/.netlify/functions/delete-event', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, accessToken })
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to delete event');
+      
       toast({
-        title: "Event Deleted",
-        description: "The event has been deleted successfully."
+        title: "Success",
+        description: "Event deleted successfully."
       });
       fetchEvents();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error deleting event:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to delete event.",
         variant: "destructive"
       });
     }
