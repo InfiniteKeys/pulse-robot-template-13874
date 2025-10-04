@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+// import { supabase } from '@/integrations/supabase/client'; // 🛑 Removed problematic import alias
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Pencil, Trash2, Plus, Loader2 } from 'lucide-react';
-import { useAuth } from './AuthProvider';
+import { useAuth } from './AuthProvider'; // Assuming AuthProvider handles user state
 
 interface Event {
   id: string;
@@ -21,14 +21,28 @@ interface Event {
   created_at: string;
 }
 
+// 🛑 MOCK FUNCTION: Replaces supabase.auth.getSession() to allow compilation and token simulation
+// In a real app, this logic would live in your AuthProvider or client setup.
+const getMockSession = async () => {
+    // In the sandbox, we mock a session to allow the UI logic to proceed.
+    // Replace this with your actual Supabase auth call if you move this file into your project.
+    return { data: { session: { access_token: 'MOCK_ADMIN_TOKEN_12345' } } };
+};
+
+
 const EventManagement = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // State for delete confirmation modal
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [eventToDeleteId, setEventToDeleteId] = useState<string | null>(null);
+
   const { toast } = useToast();
-  const { user } = useAuth();
+  // const { user } = useAuth(); // Assuming 'user' is correctly populated
 
   const [formData, setFormData] = useState({
     name: '',
@@ -46,6 +60,7 @@ const EventManagement = () => {
   const fetchEvents = async () => {
     setLoading(true);
     try {
+      // NOTE: This assumes the Netlify function '/.netlify/functions/get-events' is public and doesn't require auth.
       const response = await fetch('/.netlify/functions/get-events');
       if (!response.ok) throw new Error('Failed to fetch events');
       
@@ -63,78 +78,90 @@ const EventManagement = () => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // Basic validation
-  if (!formData.name || !formData.date || !formData.time || !formData.location) {
-    toast({
-      title: "Error",
-      description: "Please fill in all required fields.",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  setSubmitting(true);
-
-  try {
-    // 1️⃣ Get current session and access token
-    const { data: { session } } = await supabase.auth.getSession();
-    const accessToken = session?.access_token;
-
-    if (!accessToken) throw new Error('You must be logged in as an admin to perform this action.');
-
-    // 2️⃣ Prepare request body
-    const body = {
-      id: editingEvent?.id || null,
-      ...formData
-    };
-
-    // 3️⃣ Decide endpoint based on whether editing or creating
-    const endpoint = editingEvent
-      ? 'update-event'
-      : 'create-event';
-
-    // 4️⃣ Call Supabase edge function with proper JWT
-    const res = await fetch(
-      `https://woosegomxvbgzelyqvoj.supabase.co/functions/v1/${endpoint}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`, // ✅ valid JWT
-        },
-        body: JSON.stringify(body),
-      }
-    );
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData?.message || 'Failed to save event');
+    // Basic validation
+    if (!formData.name || !formData.date || !formData.time || !formData.location || !formData.participants) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
     }
 
-    toast({
-      title: "Success",
-      description: editingEvent ? "Event updated successfully." : "Event created successfully."
-    });
+    setSubmitting(true);
 
-    // Reset form and refresh events
-    setDialogOpen(false);
-    resetForm();
-    fetchEvents();
+    try {
+      // 1️⃣ Get current session and access token securely using the mock
+      // 🛑 REPLACE MOCK WITH ACTUAL: const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getMockSession();
+      const accessToken = session?.access_token;
 
-  } catch (error: any) {
-    console.error('Error saving event:', error);
-    toast({
-      title: "Error",
-      description: error.message || "Failed to save event.",
-      variant: "destructive"
-    });
-  } finally {
-    setSubmitting(false);
-  }
-};
+      if (!accessToken) throw new Error('You must be logged in as an admin to perform this action.');
+
+      // 2️⃣ Prepare request body
+      const body = {
+        id: editingEvent?.id || null,
+        ...formData
+      };
+
+      // 3️⃣ Decide endpoint based on whether editing or creating
+      const endpoint = editingEvent
+        ? 'update-event'
+        : 'create-event';
+
+      // 4️⃣ Call Supabase edge function with proper JWT
+      const res = await fetch(
+        // NOTE: Hardcoded Supabase URL. Using relative path for Netlify Edge/Functions is often better.
+        // Assuming this is required:
+        `https://woosegomxvbgzelyqvoj.supabase.co/functions/v1/${endpoint}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`, // The server is rejecting this token/role
+          },
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (!res.ok) {
+        // We expect the original admin error here until we fix the backend function
+        const errorText = await res.text();
+        let errorMessage = 'Failed to save event';
+        try {
+            // Edge functions often return JSON errors
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData?.message || errorData?.error || errorText;
+        } catch (e) {
+            errorMessage = errorText; // Fallback to raw text
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast({
+        title: "Success",
+        description: editingEvent ? "Event updated successfully." : "Event created successfully."
+      });
+
+      // Reset form and refresh events
+      setDialogOpen(false);
+      resetForm();
+      fetchEvents();
+
+    } catch (error: any) {
+      console.error('Error saving event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save event.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleEdit = (event: Event) => {
     setEditingEvent(event);
@@ -149,32 +176,56 @@ const handleSubmit = async (e: React.FormEvent) => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
+  const confirmDelete = (id: string) => {
+    setEventToDeleteId(id);
+    setIsConfirmingDelete(true);
+  };
+  
+  const handleDelete = async () => {
+    if (!eventToDeleteId) return;
+
+    // Close the modal and show loading state
+    setIsConfirmingDelete(false);
+    setSubmitting(true);
 
     try {
-      const accessToken = localStorage.getItem('access_token');
+      // Get current session and access token securely using the mock
+      // 🛑 REPLACE MOCK WITH ACTUAL: const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getMockSession();
+      const accessToken = session?.access_token;
+
+      if (!accessToken) throw new Error('You must be logged in as an admin to perform this action.');
       
+      // Call Netlify function with Authorization header
       const response = await fetch('/.netlify/functions/delete-event', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, accessToken })
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ id: eventToDeleteId }),
       });
 
-      if (!response.ok) throw new Error('Failed to delete event');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.message || 'Failed to delete event');
+      }
       
       toast({
         title: "Success",
         description: "Event deleted successfully."
       });
       fetchEvents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting event:', error);
       toast({
         title: "Error",
-        description: "Failed to delete event.",
+        description: error.message || "Failed to delete event.",
         variant: "destructive"
       });
+    } finally {
+      setSubmitting(false);
+      setEventToDeleteId(null);
     }
   };
 
@@ -212,7 +263,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               if (!open) resetForm();
             }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button disabled={submitting}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Event
                 </Button>
@@ -285,11 +336,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                     />
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
                       Cancel
                     </Button>
                     <Button type="submit" disabled={submitting}>
-                      {submitting ? 'Saving...' : (editingEvent ? 'Update' : 'Create')}
+                      {submitting ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+                      ) : (editingEvent ? 'Update' : 'Create')}
                     </Button>
                   </div>
                 </form>
@@ -303,7 +356,12 @@ const handleSubmit = async (e: React.FormEvent) => {
               <p className="text-center text-muted-foreground py-8">No events found</p>
             ) : (
               events.map((event) => (
-                <Card key={event.id}>
+                <Card key={event.id} className="relative">
+                  {submitting && (eventToDeleteId === event.id || (editingEvent?.id === event.id && dialogOpen)) && (
+                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-lg z-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  )}
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
@@ -313,10 +371,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="icon" onClick={() => handleEdit(event)}>
+                        <Button variant="outline" size="icon" onClick={() => handleEdit(event)} disabled={submitting}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" onClick={() => handleDelete(event.id)}>
+                        <Button variant="outline" size="icon" onClick={() => confirmDelete(event.id)} disabled={submitting}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -336,6 +394,26 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Custom Delete Confirmation Dialog */}
+      <Dialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete this event? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsConfirmingDelete(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
+              {submitting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
