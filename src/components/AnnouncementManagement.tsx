@@ -42,10 +42,9 @@ const AnnouncementManagement = () => {
   const fetchAnnouncements = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/.netlify/functions/get-announcements');
-      if (!response.ok) throw new Error('Failed to fetch announcements');
+      const { data, error } = await supabase.functions.invoke('get-announcements');
       
-      const data = await response.json();
+      if (error) throw error;
       setAnnouncements(data || []);
     } catch (error) {
       console.error('Error fetching announcements:', error);
@@ -72,42 +71,34 @@ const AnnouncementManagement = () => {
 
     setSubmitting(true);
     try {
-      const accessToken = localStorage.getItem('access_token');
-      
       if (editingAnnouncement) {
-        const response = await fetch('/.netlify/functions/update-announcement', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const { error } = await supabase.functions.invoke('update-announcement', {
+          body: {
             id: editingAnnouncement.id,
             title: formData.title,
             text: formData.text,
             creator_name: formData.creator_name,
-            creation_time: formData.creation_time,
-            accessToken
-          })
+            creation_time: formData.creation_time
+          }
         });
 
-        if (!response.ok) throw new Error('Failed to update announcement');
+        if (error) throw error;
         
         toast({
           title: "Success",
           description: "Announcement updated successfully."
         });
       } else {
-        const response = await fetch('/.netlify/functions/create-announcement', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const { error } = await supabase.functions.invoke('create-announcement', {
+          body: {
             title: formData.title,
             text: formData.text,
             creator_name: formData.creator_name,
-            creation_time: formData.creation_time,
-            accessToken
-          })
+            creation_time: formData.creation_time
+          }
         });
 
-        if (!response.ok) throw new Error('Failed to create announcement');
+        if (error) throw error;
         
         toast({
           title: "Success",
@@ -147,15 +138,11 @@ const AnnouncementManagement = () => {
     if (!confirm('Are you sure you want to delete this announcement?')) return;
 
     try {
-      const accessToken = localStorage.getItem('access_token');
-      
-      const response = await fetch('/.netlify/functions/delete-announcement', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, accessToken })
+      const { error } = await supabase.functions.invoke('delete-announcement', {
+        body: { id }
       });
 
-      if (!response.ok) throw new Error('Failed to delete announcement');
+      if (error) throw error;
       
       toast({
         title: "Success",

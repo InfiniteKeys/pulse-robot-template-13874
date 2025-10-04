@@ -37,10 +37,9 @@ const StatsManagement = () => {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/.netlify/functions/get-stats');
-      if (!response.ok) throw new Error('Failed to fetch stats');
+      const { data, error } = await supabase.functions.invoke('get-stats');
       
-      const data = await response.json();
+      if (error) throw error;
       
       if (data) {
         setStats({
@@ -67,25 +66,18 @@ const StatsManagement = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const accessToken = localStorage.getItem('access_token');
-      
-      const response = await fetch('/.netlify/functions/update-stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stats: {
-            active_members: stats.active_members,
-            competitions: stats.competitions,
-            awards_won: stats.awards_won,
-            years_running: stats.years_running,
-            success_rate: stats.success_rate,
-            weekly_sessions: stats.weekly_sessions
-          },
-          accessToken
-        })
+      const { error } = await supabase.functions.invoke('update-stats', {
+        body: {
+          active_members: stats.active_members,
+          competitions: stats.competitions,
+          awards_won: stats.awards_won,
+          years_running: stats.years_running,
+          success_rate: stats.success_rate,
+          weekly_sessions: stats.weekly_sessions
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to update stats');
+      if (error) throw error;
 
       toast({
         title: "Success",
