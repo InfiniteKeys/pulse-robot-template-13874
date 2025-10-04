@@ -5,34 +5,6 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://woosegomxvbgzelyqvoj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvb3NlZ29teHZiZ3plbHlxdm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2Nzg3OTAsImV4cCI6MjA3NDI1NDc5MH0.htpKQLRZjqwochLN7MBVI8tA5F-AAwktDd5SLq6vUSc";
 
-// Custom fetch that routes REST API calls through Netlify proxy to avoid CORS blocks
-const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
-  const urlString = url.toString();
-  
-  // Only proxy REST API calls (/rest/v1/), not auth or other calls
-  if (urlString.includes('woosegomxvbgzelyqvoj.supabase.co/rest/v1/')) {
-    const endpoint = urlString.replace(SUPABASE_URL, '');
-    
-    const proxyOptions = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        endpoint,
-        method: options?.method || 'GET',
-        body: options?.body ? JSON.parse(options.body as string) : undefined,
-        headers: options?.headers || {}
-      })
-    };
-    
-    return fetch('/.netlify/functions/proxy', proxyOptions);
-  }
-  
-  // For other requests (auth handled via separate Netlify functions), use regular fetch
-  return fetch(url, options);
-};
-
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -41,8 +13,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  },
-  global: {
-    fetch: customFetch,
   }
 });
