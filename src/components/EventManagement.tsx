@@ -300,7 +300,11 @@ const EventManagement = () => {
                       <div>
                         <CardTitle>{event.name}</CardTitle>
                         <CardDescription>
-                          {new Date(event.date).toLocaleDateString()} at {event.time} • {event.location}
+                          {(() => {
+                            const [year, month, day] = event.date.split('-').map(Number);
+                            const dateInEST = new Date(year, month - 1, day);
+                            return dateInEST.toLocaleDateString();
+                          })()} at {event.time} • {event.location}
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
