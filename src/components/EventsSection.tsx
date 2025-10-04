@@ -67,15 +67,11 @@ const EventsSection = () => {
     useEffect(() => {
       const timer = setInterval(() => {
         // Get current time in EST
-        const now = new Date();
-        const nowEST = toZonedTime(now, 'America/Toronto');
+        const nowEST = toZonedTime(new Date(), 'America/New_York');
         
-        // Parse date and time as EST - treat the input date as an EST date, not UTC
-        const [year, month, day] = targetDate.split('-').map(Number);
-        const [hours, minutes] = targetTime.split(':').map(Number);
-        
-        // Create a date in EST timezone
-        const targetEST = new Date(year, month - 1, day, hours, minutes, 0);
+        // Combine date and time, parse as EST
+        const dateTimeString = `${targetDate}T${targetTime}`;
+        const targetEST = toZonedTime(new Date(dateTimeString), 'America/New_York');
         
         const difference = targetEST.getTime() - nowEST.getTime();
         if (difference > 0) {
@@ -148,16 +144,12 @@ const EventsSection = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center text-muted-foreground text-sm space-y-2 sm:space-y-0 sm:space-x-4">
                       <div className="flex items-center hover:text-primary transition-colors">
                         <Calendar className="h-4 w-4 mr-1" />
-                        {(() => {
-                          const [year, month, day] = event.date.split('-').map(Number);
-                          const dateInEST = new Date(year, month - 1, day);
-                          return dateInEST.toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          });
-                        })()}
+                        {new Date(event.date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
                       </div>
                       <div className="flex items-center hover:text-secondary transition-colors">
                         <Clock className="h-4 w-4 mr-1" />

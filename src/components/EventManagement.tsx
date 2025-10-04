@@ -62,33 +62,24 @@ const EventManagement = () => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!formData.name || !formData.date || !formData.time || !formData.location) {
-    toast({
-      title: "Error",
-      description: "Please fill in all required fields.",
-      variant: "destructive"
-    });
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.date || !formData.time || !formData.location) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  setSubmitting(true);
-
-  try {
-    if (editingEvent) {
-      // Update existing event
+    setSubmitting(true);
+    try {
       const { data: { session } } = await supabase.auth.getSession();
-
-      const res = await fetch(
-        'https://woosegomxvbgzelyqvoj.supabase.co/functions/v1/update-event',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
+      
+      if (editingEvent) {
+        const { error } = await supabase.functions.invoke('update-event', {
+          body: {
             id: editingEvent.id,
             name: formData.name,
             description: formData.description,
@@ -96,48 +87,49 @@ const handleSubmit = async (e: React.FormEvent) => {
             time: formData.time,
             location: formData.location,
             participants: formData.participants
-          }),
-        }
-      );
+          }
+        });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData?.message || 'Failed to update event');
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Event updated successfully."
+        });
+      } else {
+        const { error } = await supabase.functions.invoke('create-event', {
+          body: {
+            name: formData.name,
+            description: formData.description,
+            date: formData.date,
+            time: formData.time,
+            location: formData.location,
+            participants: formData.participants
+          }
+        });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Event created successfully."
+        });
       }
 
+      setDialogOpen(false);
+      resetForm();
+      fetchEvents();
+    } catch (error) {
+      console.error('Error saving event:', error);
       toast({
-        title: "Success",
-        description: "Event updated successfully."
+        title: "Error",
+        description: "Failed to save event.",
+        variant: "destructive"
       });
-
-    } else {
-      // Create new event
-      const { error } = await supabase.functions.invoke('create-event', {
-        body: { ...formData }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Event created successfully."
-      });
+    } finally {
+      setSubmitting(false);
     }
-
-    setDialogOpen(false);
-    resetForm();
-    fetchEvents();
-  } catch (error) {
-    console.error('Error saving event:', error);
-    toast({
-      title: "Error",
-      description: "Failed to save event.",
-      variant: "destructive"
-    });
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
 
   const handleEdit = (event: Event) => {
     setEditingEvent(event);
@@ -308,11 +300,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <div>
                         <CardTitle>{event.name}</CardTitle>
                         <CardDescription>
-                          {(() => {
-                            const [year, month, day] = event.date.split('-').map(Number);
-                            const dateInEST = new Date(year, month - 1, day);
-                            return dateInEST.toLocaleDateString();
-                          })()} at {event.time} • {event.location}
+                          {new Date(event.date).toLocaleDateString()} at {event.time} • {event.location}
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
