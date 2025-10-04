@@ -74,21 +74,15 @@ const EventManagement = () => {
     }
 
     setSubmitting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (editingEvent) {
-        const { error } = await supabase.functions.invoke('update-event', {
-          body: {
-            id: editingEvent.id,
-            name: formData.name,
-            description: formData.description,
-            date: formData.date,
-            time: formData.time,
-            location: formData.location,
-            participants: formData.participants
-          }
-        });
+    
+    const { data: { session } } = await supabase.auth.getSession();
+
+  const { data, error } = await supabase.functions.invoke('update-event', {
+  body: { id, name, description, date, time, location, participants },
+  headers: {
+    Authorization: `Bearer ${session?.access_token}`,
+  },
+});
 
         if (error) throw error;
         
