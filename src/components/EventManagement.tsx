@@ -62,71 +62,82 @@ const EventManagement = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.date || !formData.time || !formData.location) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    
-    const { data: { session } } = await supabase.auth.getSession();
-
-    await fetch('https://woosegomxvbgzelyqvoj.supabase.co/functions/v1/update-event', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`, // ✅ required
-      },
-      body: JSON.stringify({ id, name, description, date, time, location, participants }),
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!formData.name || !formData.date || !formData.time || !formData.location) {
+    toast({
+      title: "Error",
+      description: "Please fill in all required fields.",
+      variant: "destructive"
     });
+    return;
+  }
 
+  setSubmitting(true);
 
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Event updated successfully."
-        });
-      } else {
-        const { error } = await supabase.functions.invoke('create-event', {
-          body: {
+  try {
+    if (editingEvent) {
+      // Update existing event
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch(
+        'https://woosegomxvbgzelyqvoj.supabase.co/functions/v1/update-event',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            id: editingEvent.id,
             name: formData.name,
             description: formData.description,
             date: formData.date,
             time: formData.time,
             location: formData.location,
             participants: formData.participants
-          }
-        });
+          }),
+        }
+      );
 
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Event created successfully."
-        });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData?.message || 'Failed to update event');
       }
 
-      setDialogOpen(false);
-      resetForm();
-      fetchEvents();
-    } catch (error) {
-      console.error('Error saving event:', error);
       toast({
-        title: "Error",
-        description: "Failed to save event.",
-        variant: "destructive"
+        title: "Success",
+        description: "Event updated successfully."
       });
-    } finally {
-      setSubmitting(false);
+
+    } else {
+      // Create new event
+      const { error } = await supabase.functions.invoke('create-event', {
+        body: { ...formData }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Event created successfully."
+      });
     }
-  };
+
+    setDialogOpen(false);
+    resetForm();
+    fetchEvents();
+  } catch (error) {
+    console.error('Error saving event:', error);
+    toast({
+      title: "Error",
+      description: "Failed to save event.",
+      variant: "destructive"
+    });
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const handleEdit = (event: Event) => {
     setEditingEvent(event);
