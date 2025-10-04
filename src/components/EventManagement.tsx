@@ -77,12 +77,15 @@ const EventManagement = () => {
     
     const { data: { session } } = await supabase.auth.getSession();
 
-  const { data, error } = await supabase.functions.invoke('update-event', {
-  body: { id, name, description, date, time, location, participants },
-  headers: {
-    Authorization: `Bearer ${session?.access_token}`,
-  },
-});
+    await fetch('https://woosegomxvbgzelyqvoj.supabase.co/functions/v1/update-event', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`, // ✅ required
+      },
+      body: JSON.stringify({ id, name, description, date, time, location, participants }),
+    });
+
 
         if (error) throw error;
         
