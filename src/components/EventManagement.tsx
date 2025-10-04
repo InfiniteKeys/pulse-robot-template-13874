@@ -63,80 +63,78 @@ const EventManagement = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.date || !formData.time || !formData.location) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
-      });
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    setSubmitting(true);
-    try {
-      const accessToken = localStorage.getItem('access_token');
-      
-      if (editingEvent) {
-        const response = await fetch('/.netlify/functions/update-event', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingEvent.id,
-            name: formData.name,
-            description: formData.description,
-            date: formData.date,
-            time: formData.time,
-            location: formData.location,
-            participants: formData.participants,
-            accessToken
-          })
-        });
+  // Basic validation
+  if (!formData.name || !formData.date || !formData.time || !formData.location) {
+    toast({
+      title: "Error",
+      description: "Please fill in all required fields.",
+      variant: "destructive"
+    });
+    return;
+  }
 
-        if (!response.ok) throw new Error('Failed to update event');
-        
-        toast({
-          title: "Success",
-          description: "Event updated successfully."
-        });
-      } else {
-        const response = await fetch('/.netlify/functions/create-event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: formData.name,
-            description: formData.description,
-            date: formData.date,
-            time: formData.time,
-            location: formData.location,
-            participants: formData.participants,
-            accessToken
-          })
-        });
+  setSubmitting(true);
 
-        if (!response.ok) throw new Error('Failed to create event');
-        
-        toast({
-          title: "Success",
-          description: "Event created successfully."
-        });
+  try {
+    // 1️⃣ Get current session and access token
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    if (!accessToken) throw new Error('You must be logged in as an admin to perform this action.');
+
+    // 2️⃣ Prepare request body
+    const body = {
+      id: editingEvent?.id || null,
+      ...formData
+    };
+
+    // 3️⃣ Decide endpoint based on whether editing or creating
+    const endpoint = editingEvent
+      ? 'update-event'
+      : 'create-event';
+
+    // 4️⃣ Call Supabase edge function with proper JWT
+    const res = await fetch(
+      `https://woosegomxvbgzelyqvoj.supabase.co/functions/v1/${endpoint}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`, // ✅ valid JWT
+        },
+        body: JSON.stringify(body),
       }
+    );
 
-      setDialogOpen(false);
-      resetForm();
-      fetchEvents();
-    } catch (error) {
-      console.error('Error saving event:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save event.",
-        variant: "destructive"
-      });
-    } finally {
-      setSubmitting(false);
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData?.message || 'Failed to save event');
     }
-  };
+
+    toast({
+      title: "Success",
+      description: editingEvent ? "Event updated successfully." : "Event created successfully."
+    });
+
+    // Reset form and refresh events
+    setDialogOpen(false);
+    resetForm();
+    fetchEvents();
+
+  } catch (error: any) {
+    console.error('Error saving event:', error);
+    toast({
+      title: "Error",
+      description: error.message || "Failed to save event.",
+      variant: "destructive"
+    });
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const handleEdit = (event: Event) => {
     setEditingEvent(event);
