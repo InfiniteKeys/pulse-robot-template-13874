@@ -31,25 +31,23 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch profiles
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('*');
-
-      if (profileError) throw profileError;
-
-      // Fetch roles
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-
-      if (rolesError) throw rolesError;
+      const accessToken = localStorage.getItem('access_token');
+      
+      const response = await fetch('/.netlify/functions/get-users', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch users');
+      
+      const { profiles, roles } = await response.json();
 
       // Combine profiles with roles
       const usersWithRoles: UserWithRole[] = (profiles || []).map(profile => ({
         ...profile,
-        isAdmin: roles?.some(r => r.user_id === profile.user_id && r.role === 'admin') || false,
-        isOverseer: roles?.some(r => r.user_id === profile.user_id && r.role === 'overseer') || false
+        is_admin: roles?.some(r => r.user_id === profile.id && r.role === 'admin') || false,
+        is_overseer: roles?.some(r => r.user_id === profile.id && r.role === 'overseer') || false
       }));
 
       setUsers(usersWithRoles);
@@ -67,15 +65,20 @@ const UserManagement = () => {
 
   const updateUserRole = async (userId: string, role: 'admin' | 'overseer', action: 'add' | 'remove') => {
     try {
-      const { error } = await supabase.functions.invoke('update-user-role', {
-        body: {
+      const accessToken = localStorage.getItem('access_token');
+      
+      const response = await fetch('/.netlify/functions/update-user-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           userId,
           role,
-          action
-        }
+          action,
+          accessToken
+        })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to update user role');
 
       toast({
         title: "Success",
