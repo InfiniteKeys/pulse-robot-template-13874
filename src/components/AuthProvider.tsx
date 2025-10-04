@@ -73,6 +73,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkUserRoles = async (userId: string) => {
     try {
+      // Small delay to ensure auth is fully established
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       // Get access token from localStorage
       const storedAuth = localStorage.getItem('supabase.auth.token');
       let accessToken = '';
@@ -80,6 +83,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (storedAuth) {
         const authData = JSON.parse(storedAuth);
         accessToken = authData.access_token;
+      }
+      
+      if (!accessToken) {
+        console.warn('No access token available for role check');
+        setLoading(false);
+        return;
       }
       
       // Call Netlify function to check roles (server-side)
@@ -90,6 +99,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
         body: JSON.stringify({ userId, accessToken })
       });
+      
+      if (!response.ok) {
+        console.warn('Role check failed:', response.status);
+        setLoading(false);
+        return;
+      }
       
       const data = await response.json();
       
