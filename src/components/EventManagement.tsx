@@ -46,10 +46,9 @@ const EventManagement = () => {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/.netlify/functions/get-events');
-      if (!response.ok) throw new Error('Failed to fetch events');
+      const { data, error } = await supabase.functions.invoke('get-events');
       
-      const data = await response.json();
+      if (error) throw error;
       setEvents(data || []);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -76,46 +75,40 @@ const EventManagement = () => {
 
     setSubmitting(true);
     try {
-      const accessToken = localStorage.getItem('access_token');
+      const { data: { session } } = await supabase.auth.getSession();
       
       if (editingEvent) {
-        const response = await fetch('/.netlify/functions/update-event', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const { error } = await supabase.functions.invoke('update-event', {
+          body: {
             id: editingEvent.id,
             name: formData.name,
             description: formData.description,
             date: formData.date,
             time: formData.time,
             location: formData.location,
-            participants: formData.participants,
-            accessToken
-          })
+            participants: formData.participants
+          }
         });
 
-        if (!response.ok) throw new Error('Failed to update event');
+        if (error) throw error;
         
         toast({
           title: "Success",
           description: "Event updated successfully."
         });
       } else {
-        const response = await fetch('/.netlify/functions/create-event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const { error } = await supabase.functions.invoke('create-event', {
+          body: {
             name: formData.name,
             description: formData.description,
             date: formData.date,
             time: formData.time,
             location: formData.location,
-            participants: formData.participants,
-            accessToken
-          })
+            participants: formData.participants
+          }
         });
 
-        if (!response.ok) throw new Error('Failed to create event');
+        if (error) throw error;
         
         toast({
           title: "Success",
@@ -155,15 +148,11 @@ const EventManagement = () => {
     if (!confirm('Are you sure you want to delete this event?')) return;
 
     try {
-      const accessToken = localStorage.getItem('access_token');
-      
-      const response = await fetch('/.netlify/functions/delete-event', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, accessToken })
+      const { error } = await supabase.functions.invoke('delete-event', {
+        body: { id }
       });
 
-      if (!response.ok) throw new Error('Failed to delete event');
+      if (error) throw error;
       
       toast({
         title: "Success",
